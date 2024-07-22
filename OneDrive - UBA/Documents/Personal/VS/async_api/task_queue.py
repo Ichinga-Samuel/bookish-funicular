@@ -1,10 +1,10 @@
 import asyncio
-from typing import Coroutine, Callable, Awaitable
+from typing import Coroutine, Callable
 from signal import signal, SIGINT, SIGTERM
 
 
 class QueueItem:
-    def __init__(self, coroutine: Callable | Awaitable | Coroutine, *args, **kwargs):
+    def __init__(self, coroutine: Callable | Coroutine, *args, **kwargs):
         self.coroutine = coroutine
         self.args = args
         self.kwargs = kwargs
@@ -17,7 +17,7 @@ class QueueItem:
 
 
 class TaskQueue:
-    def __init__(self, size=0, workers=0, timeout=None):
+    def __init__(self, size=0, workers=0, timeout=60):
         self.queue = asyncio.Queue(maxsize=size)
         self.workers = workers
         self.tasks = []
@@ -39,16 +39,19 @@ class TaskQueue:
             except asyncio.QueueEmpty:
                 break
 
-    def sig_handle(self, sig, frame):
+    def sigterm_handle(self, sig, frame):
+        raise KeyboardInterrupt
+    
+    def sigint_handle(self, sig, frame):
         self.stop = True
 
     async def join(self):
         try:
-            signal(SIGINT, self.sig_handle)
-            signal(SIGTERM, self.sig_handle)
+            signal(SIGINT, self.sigint_handle)
+            signal(SIGTERM, self.sigterm_handle)
             await asyncio.wait_for(self.queue.join(), timeout=self.timeout)
-        except TimeoutError:
-            self.stop = True
+        except (TimeoutError, KeyboardInterrupt) as exe:
+            print('Timed out or Interrupted', exe)
 
     async def run(self):
         workers = self.workers or self.queue.qsize()
@@ -57,6 +60,5 @@ class TaskQueue:
         await self.cancel()
 
     async def cancel(self):
-        for task in self.tasks:
-            task.cancel()
+        self.tasks = [task.cancel() for task in self.tasks]
         await asyncio.gather(*self.tasks, return_exceptions=True)

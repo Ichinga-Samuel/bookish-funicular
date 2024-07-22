@@ -19,19 +19,16 @@ class BaseClass:
     time: int = 0
     dead: bool = False
     kids: list[int] = field(default_factory=list)
-    
+
     def __str__(self):
         return f'{self.id}'
-    
-    async def save(self, db: dict):
-        db[self.id] = str(self)
 
 
 @dataclass
 class Story(BaseClass):
     descendants: int = 0
     title: str = ''
-    url: str = 'http://stoplight.io/prism/'
+    url: str = 'https://news.ycombinator.com/'
     text: str = ''
     score: int = 0
         
@@ -68,7 +65,4 @@ class User:
     
     def __str__(self):
         return f'{self.id}'
-    
-    async def save(self, db: dict):
-        db[self.id] = str(self)
         

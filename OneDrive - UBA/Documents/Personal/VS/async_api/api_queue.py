@@ -1,44 +1,22 @@
-import http.client
 import asyncio
-import json
 
-from base import User, Story, Comment, Poll, PollOption, BaseClass
-from task_queue import QueueItem, TaskQueue
+from dict_db import DictDB
+from task_queue import TaskQueue, QueueItem
 
 
 
 class API:
     api = 'hacker-news.firebaseio.com/v0/'
-    version = 'v0'
-    url = f'{api}/{version}'
-    payload = {}
-    connections = []
-    result = {
-        'ids': set(),
-        'data': {}
-    }
-    models: dict[str: BaseClass | User] = {'story': Story, 'comment': Comment, 'poll': Poll, 'pollopt': PollOption,
-                                           'job': Story, 'user': User}
-    task_queue = TaskQueue(size=2000, timeout=60)
 
-    async def get(self, *, path: str, payload: dict = None):
-        conn = http.client.HTTPSConnection('hacker-news.firebaseio.com')
-        self.connections.append(conn)
-        payload = payload or self.payload
-        path = f'/{self.version}/{path}'
-        await asyncio.to_thread(conn.request, 'GET', path, payload)
-        res = await asyncio.to_thread(conn.getresponse)
-        return json.loads(res.read().decode('utf-8'))
+    def __init__(self, db=None, timeout=60):
+        self.connections = []
+        self.visited = set()
+        self.db = db or DictDB()
+        self.task_queue = TaskQueue(size=2000, timeout=60)
+        
 
     async def close(self):
         [await asyncio.to_thread(conn.close) for conn in self.connections]
-
-    async def save(self, *, data: dict, key: str = ''):
-        key = data.get('type', key)
-        model = self.models[key]
-        data = model(**data)
-        await data.save(self.result['data'])
-        self.result['ids'].add(data.id)
 
     async def get_by_id(self, *, item_id):
         if item_id in self.result['ids']:
