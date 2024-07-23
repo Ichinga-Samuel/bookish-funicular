@@ -6,8 +6,6 @@ class Types(StrEnum):
     JOB = 'job'
     STORY = 'story'
     COMMENT = 'comment'
-    POLL = 'poll'
-    POLLOPT = 'pollopt'
     
     
 @dataclass
@@ -37,21 +35,6 @@ class Story(BaseClass):
 class Comment(BaseClass):
     parent: int = 0
     text: str = ''
-            
-        
-@dataclass
-class Poll(BaseClass):
-    parts: list[int] = field(default_factory=list)
-    descendants: int = 0
-    score: int = 0
-    title: str = ''
-    text: str = ''
-
-
-@dataclass
-class PollOption(BaseClass):
-    parent: int = 0
-    score: int = 0
 
 
 @dataclass
@@ -65,4 +48,3 @@ class User:
     
     def __str__(self):
         return f'{self.id}'
-        
