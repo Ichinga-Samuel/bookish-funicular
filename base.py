@@ -6,10 +6,8 @@ class Types(StrEnum):
     JOB = 'job'
     STORY = 'story'
     COMMENT = 'comment'
-    POLL = 'poll'
-    POLLOPT = 'pollopt'
-    
-    
+
+
 @dataclass
 class BaseClass:
     id: int
@@ -31,7 +29,7 @@ class BaseClass:
 class Story(BaseClass):
     descendants: int = 0
     title: str = ''
-    url: str = 'http://stoplight.io/prism/'
+    url: str = 'https://news.ycombinator.com/news'
     text: str = ''
     score: int = 0
         
@@ -40,21 +38,6 @@ class Story(BaseClass):
 class Comment(BaseClass):
     parent: int = 0
     text: str = ''
-            
-        
-@dataclass
-class Poll(BaseClass):
-    parts: list[int] = field(default_factory=list)
-    descendants: int = 0
-    score: int = 0
-    title: str = ''
-    text: str = ''
-
-
-@dataclass
-class PollOption(BaseClass):
-    parent: int = 0
-    score: int = 0
 
 
 @dataclass
@@ -71,4 +54,3 @@ class User:
     
     async def save(self, db: dict):
         db[self.id] = str(self)
-        

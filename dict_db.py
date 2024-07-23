@@ -3,11 +3,15 @@ Mock DB for testing purposes
 """
 from models import Story, Comment, User
 
+
 class DictDB:
     types = {'story': Story, 'comment': Comment, 'job': Story, 'user': User}
     
     def __init__(self):
-        self.data =  {}
+        self.data = {}
+
+    def __len__(self):
+        return len(self.data)
 
     def get(self, key):
         return self.data.get(key)
