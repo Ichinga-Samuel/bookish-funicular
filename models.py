@@ -29,6 +29,14 @@ class Story(BaseClass):
     url: str = 'https://news.ycombinator.com/'
     text: str = ''
     score: int = 0
+
+
+@dataclass
+class Job(BaseClass):
+    title: str = ''
+    text: str = ''
+    score: int = 0
+    url: str = 'https://news.ycombinator.com/'
         
 
 @dataclass

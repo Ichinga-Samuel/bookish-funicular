@@ -39,3 +39,4 @@ class AsyncQueue:
         stories = set(s) | set(j) | set(t) | set(a)
         [self.task_queue.add(QueueItem(self.get_by_id, item_id=itd)) for itd in stories]
         await self.task_queue.run()
+        print(f'{len(self.db)} items visited')

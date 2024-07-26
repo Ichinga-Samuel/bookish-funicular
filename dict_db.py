@@ -22,7 +22,7 @@ class DictDB:
             data = model(**data)
             self.data[data.id] = data
         except (KeyError, TypeError) as exe:
-            print('Unable to save data', exe)
+            print('Unable to save data', data)
 
     def delete(self, key):
         del self.data[key]
