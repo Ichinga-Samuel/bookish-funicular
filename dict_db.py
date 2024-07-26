@@ -23,6 +23,14 @@ class DictDB:
             self.data[data.id] = data
         except (KeyError, TypeError) as exe:
             print('Unable to save data', data)
+    
+    def save_user(self, *, data):
+        try:
+            data = User(**data)
+            self.data[data.id] = data
+        except Exception as exe:
+            print('')
+
 
     def delete(self, key):
         del self.data[key]

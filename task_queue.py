@@ -1,7 +1,10 @@
 import asyncio
+from logging import getLogger
 
 from typing import Coroutine, Callable
 from signal import signal, SIGINT
+
+logger = getLogger(__name__)
 
 
 class QueueItem:
@@ -9,39 +12,45 @@ class QueueItem:
         self.coroutine = coroutine
         self.args = args
         self.kwargs = kwargs
+        self.time = asyncio.get_event_loop().time()
 
     def __lt__(self, other):
-        return True
+        return self.time < other.time
 
     async def run(self):
         try:
             await self.coroutine(*self.args, **self.kwargs)
         except Exception as err:
-            print(err)
+            logger.error(f"An error occurred while running coroutine: {err}")
 
 
 class TaskQueue:
-    def __init__(self, size=0, workers=10, timeout=60):
-        self.queue = asyncio.PriorityQueue(maxsize=size)
+    def __init__(self, size=0, workers=10, timeout=60, queue=None):
+        self.queue = queue or asyncio.PriorityQueue(maxsize=size)
         self.workers = workers
         self.tasks = []
         self.timeout = timeout
         self.stop = False
 
-    def add(self, item: QueueItem, priority=2):
+    def add(self, *, item: QueueItem, priority=2):
         try:
-            self.queue.put_nowait((priority, item)) if not self.stop else ...
+            if isinstance(self.queue, asyncio.PriorityQueue):
+                item = (priority, item)
+            self.queue.put_nowait(item) if not self.stop else ...
         except asyncio.QueueFull:
             return
 
     async def worker(self):
         while True:
             try:
-                _, item = self.queue.get_nowait()
+                if isinstance(self.queue, asyncio.PriorityQueue):
+                    _, item = await self.queue.get_nowait()
+                else:
+                    item = self.queue.get_nowait()
                 await item.run()
                 self.queue.task_done()
             except asyncio.QueueEmpty:
-                print('Queue is empty')
+                logger.warning('Queue is empty. Exiting worker')
                 break
     
     def sigint_handle(self, sig, frame):
@@ -52,8 +61,8 @@ class TaskQueue:
         try:
             signal(SIGINT, self.sigint_handle)
             await asyncio.wait_for(self.queue.join(), timeout=self.timeout)
-        except asyncio.CancelledError as exe:
-            print('Interrupted', exe)
+        except asyncio.CancelledError as _:
+            logger.warning(f"Task was cancelled")
         except TimeoutError:
             self.stop = True
 
@@ -64,4 +73,6 @@ class TaskQueue:
         self.cancel()
 
     def cancel(self):
-        [task.cancel() for task in self.tasks]
+        for task in self.tasks:
+            res = task.cancel()
+            self.tasks.remove(task) if res else ...        

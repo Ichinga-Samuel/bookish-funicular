@@ -16,7 +16,7 @@ class AsyncQueue:
 
     async def get_user(self, *, user_id):
         res = await self.api.get_user(user_id=user_id)
-        self.db.save(data=res)
+        self.db.save_user(data=res)
 
     async def get_by_id(self, *, item_id):
         try:
@@ -25,10 +25,10 @@ class AsyncQueue:
             res = await self.api.get_by_id(item_id=item_id)
             self.db.save(data=res)
             if 'kids' in res:
-                [self.task_queue.add(QueueItem(self.get_by_id, item_id=item)) for item in res['kids']]
+                [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=item)) for item in res['kids']]
 
             if 'by' in res and res['by'] not in self.visited:
-                self.task_queue.add(QueueItem(self.get_user, user_id=res['by']))
+                self.task_queue.add(item=QueueItem(self.get_user, user_id=res['by']))
             return res
         except Exception as err:
             print(err)
@@ -37,6 +37,6 @@ class AsyncQueue:
         s, j, t, a = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.top_stories(),
                                           self.api.ask_stories())
         stories = set(s) | set(j) | set(t) | set(a)
-        [self.task_queue.add(QueueItem(self.get_by_id, item_id=itd)) for itd in stories]
+        [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=itd)) for itd in stories]
         await self.task_queue.run()
         print(f'{len(self.db)} items visited')
