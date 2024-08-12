@@ -36,6 +36,16 @@ class API:
         res = await self.get(path=path)
         return res
 
+    async def new_stories(self):
+        path = 'newstories.json'
+        res = await self.get(path=path)
+        return res
+
+    async def best_stories(self):
+        path = 'beststories.json'
+        res = await self.get(path=path)
+        return res
+
     async def top_stories(self):
         path = 'topstories.json'
         res = await self.get(path=path)

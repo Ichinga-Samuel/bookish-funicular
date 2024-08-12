@@ -7,28 +7,32 @@ from api import API
 
 class AsyncQueue:
 
-    def __init__(self, db=None, timeout=60, size=0):
+    def __init__(self, db=None, timeout=20, size=0):
         self.connections = []
         self.visited = set()
         self.db = db or DictDB()
-        self.task_queue = TaskQueue(size=size, timeout=timeout)
+        self.task_queue = TaskQueue(size=size, timeout=timeout, on_timeout='must_finish')
         self.api = API()
 
     async def get_user(self, *, user_id):
         res = await self.api.get_user(user_id=user_id)
-        self.db.save_user(data=res)
+        self.visited.add(res['id'])
+        self.task_queue.add(item=QueueItem(self.db.save_user, _must_finish=True, data=res), priority=0)
+        if submissions := res.get('submitted', []):
+            [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=item)) for item in submissions]
 
     async def get_by_id(self, *, item_id):
         try:
             if item_id in self.visited:
                 return
             res = await self.api.get_by_id(item_id=item_id)
-            self.db.save(data=res)
+            self.visited.add(res['id'])
+            self.task_queue.add(item=QueueItem(self.db.save, _must_finish=True, data=res), priority=0)
             if 'kids' in res:
                 [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=item)) for item in res['kids']]
 
             if 'by' in res and res['by'] not in self.visited:
-                self.task_queue.add(item=QueueItem(self.get_user, user_id=res['by']))
+                self.task_queue.add(item=QueueItem(self.get_user, user_id=res['by']), priority=1)
             return res
         except Exception as err:
             print(err)
@@ -39,4 +43,4 @@ class AsyncQueue:
         stories = set(s) | set(j) | set(t) | set(a)
         [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=itd)) for itd in stories]
         await self.task_queue.run()
-        print(f'{len(self.db)} items visited')
+        print(f'{len(self.db)}|{len(self.visited)} items visited')

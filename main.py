@@ -8,7 +8,7 @@ async def main(mode='queue'):
     if mode == 'gather':
         # async gather
         ag = AsyncGather()
-        await ag.traverse_api()
+        await ag.traverse_api(timeout=600)
     elif mode == 'queue':
         # async queue
         aq = AsyncQueue()
@@ -18,4 +18,4 @@ async def main(mode='queue'):
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    asyncio.run(main(mode='gather'))

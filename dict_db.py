@@ -1,36 +1,43 @@
 """
 Mock DB for testing purposes
 """
+
 from models import Story, Comment, User
 
 
 class DictDB:
-    types = {'story': Story, 'comment': Comment, 'job': Story, 'user': User}
+    types = {'story': Story, 'comment': Comment, 'job': Story}
     
     def __init__(self):
-        self.data = {}
+        self.data = {'story': {}, 'comment': {}, 'job': {}, 'user': {}}
 
     def __len__(self):
-        return len(self.data)
+        return sum(len(v) for v in self.data.values())
+
+    def __str__(self):
+        return (f"Stories: {len(self.data['story'])}\n"
+                f"Comments: {len(self.data['comment'])}\n"
+                f"Jobs: {len(self.data['job'])}\n"
+                f"Users: {len(self.data['user'])}\n")
 
     def get(self, key):
         return self.data.get(key)
 
-    def save(self, *, data):
+    async def save(self, *, data):
         try:
-            model = self.types[data['type']]
+            key = data['type']
+            model = self.types[key]
             data = model(**data)
-            self.data[data.id] = data
+            self.data[key][data.id] = data
         except (KeyError, TypeError) as exe:
-            print('Unable to save data', data)
+            print(f"Error saving item: {exe}")
     
-    def save_user(self, *, data):
+    async def save_user(self, *, data):
         try:
             data = User(**data)
-            self.data[data.id] = data
+            self.data['user'][data.id] = data
         except Exception as exe:
-            print('')
-
+            print(f"Error saving user: {exe}")
 
     def delete(self, key):
         del self.data[key]
