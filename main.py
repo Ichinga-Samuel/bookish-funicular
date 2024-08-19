@@ -8,7 +8,7 @@ async def main(mode='queue'):
     if mode == 'gather':
         # async gather
         ag = AsyncGather()
-        await ag.traverse_api(timeout=600)
+        await ag.traverse_api(timeout=60)
     elif mode == 'queue':
         # async queue
         aq = AsyncQueue()

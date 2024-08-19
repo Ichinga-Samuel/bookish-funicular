@@ -1,13 +1,10 @@
 import asyncio
-import signal
 
 from api import API
 from dict_db import DictDB
 
 
 class AsyncGather:
-    main_task: asyncio.Task
-
     def __init__(self, db=None):
         self.api = API()
         self.db = db or DictDB()
@@ -20,6 +17,7 @@ class AsyncGather:
         res = await self.api.get_item(item_id=item)
         await self.db.save(data=res)
         self.visited.add(item)
+        print(f"{res.get('title', res.get('id'))}")
 
         tasks = []
         if kids := res.get('kids'):
@@ -33,32 +31,28 @@ class AsyncGather:
                 tasks.extend(asyncio.create_task(self.traverse_item(item=item)) for item in submissions)
         await asyncio.gather(*tasks)
 
-    async def traverse_api(self, timeout=60):
+    async def traverse_api(self):
         s, j, n, t, a, b = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.new_stories(),
                                                 self.api.top_stories(), self.api.ask_stories(), self.api.best_stories())
         stories = set(s) | set(j) | set(t) | set(a) | set(b) | set(n)
         print(f"Total stories: {len(stories)}")
         start = asyncio.get_running_loop().time()
+
         try:
-            signal.signal(signal.SIGINT, self.sigint_handler)
             tasks = [asyncio.create_task(self.traverse_item(item=story)) for story in stories]
-            self.main_task = asyncio.gather(*tasks)
-            await asyncio.wait_for(self.main_task, timeout)
+            await asyncio.gather(*tasks)
 
-        except TimeoutError as _:
-            print('Timed out')
-
-        except asyncio.CancelledError as _:
+        except Exception as _:
             print('Cancelled')
 
         finally:
-            print(f"Made {len(self.visited)} API calls.\n"
-                  f"Saved {len(self.db)} items in {asyncio.get_running_loop().time() - start:.2f} seconds.")
+            print(f"Made {len(self.visited)} API calls. Saved {len(self.db)} items.")
             print(self.db)
 
-    def cancel_tasks(self):
-        self.main_task.cancel() if not self.main_task.done() else None
-        raise asyncio.CancelledError
 
-    def sigint_handler(self, sig, frame):
-        self.cancel_tasks()
+async def main():
+    ag = AsyncGather()
+    await ag.traverse_api()
+
+
+asyncio.run(main())
