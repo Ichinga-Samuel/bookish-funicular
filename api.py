@@ -6,7 +6,7 @@ import json
 class API:
     URL = 'hacker-news.firebaseio.com'
 
-    async def get(self, *, path: str):
+    async def get(self, *, path: str) -> list | int | dict:
         url = f'{self.URL}'
         path = f'/v0/{path}'
         conn = http.client.HTTPSConnection(url)
@@ -16,57 +16,52 @@ class API:
         conn.close()
         return res
 
-    async def get_item(self, *, item_id):
+    async def get_item(self, *, item_id) -> dict:
         path = f'item/{item_id}.json'
         res = await self.get(path=path)
         return res
 
-    async def get_user(self, *, user_id):
+    async def get_user(self, *, user_id) -> dict:
         path = f'user/{user_id}.json'
         res = await self.get(path=path)
         return res
 
-    async def get_by_id(self, *, item_id):
-        path = f'item/{item_id}.json'
-        res = await self.get(path=path)
-        return res
-
-    async def max_item(self):
+    async def max_item(self) -> int:
         path = 'maxitem.json'
         res = await self.get(path=path)
         return res
 
-    async def new_stories(self):
+    async def new_stories(self) -> list[int]:
         path = 'newstories.json'
         res = await self.get(path=path)
         return res
 
-    async def best_stories(self):
+    async def best_stories(self) -> list[int]:
         path = 'beststories.json'
         res = await self.get(path=path)
         return res
 
-    async def top_stories(self):
+    async def top_stories(self) -> list[int]:
         path = 'topstories.json'
         res = await self.get(path=path)
         return res
 
-    async def ask_stories(self):
+    async def ask_stories(self) -> list[int]:
         path = 'askstories.json'
         res = await self.get(path=path)
         return res
 
-    async def job_stories(self):
+    async def job_stories(self) -> list[int]:
         path = 'jobstories.json'
         res = await self.get(path=path)
         return res
 
-    async def show_stories(self):
+    async def show_stories(self) -> list[int]:
         path = 'showstories.json'
         res = await self.get(path=path)
         return res
 
-    async def updates(self):
+    async def updates(self) -> dict:
         path = 'updates.json'
         res = await self.get(path=path)
         return res

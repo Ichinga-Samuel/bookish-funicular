@@ -10,8 +10,8 @@ class AsyncGather:
 
     def __init__(self, db=None):
         self.api = API()
-        self.db = db or DictDB()
-        self.visited = set()
+        self.db = db or DictDB() 
+        self.visited = set() # keep track of visited items or users
 
     async def traverse_item(self, *, item):
         if item in self.visited:
@@ -32,6 +32,11 @@ class AsyncGather:
             if submissions := res.get('submitted'):
                 tasks.extend(asyncio.create_task(self.traverse_item(item=item)) for item in submissions)
         await asyncio.gather(*tasks)
+
+    async def walk_back(self, amount: int = 500):
+        first = await self.api.max_item()
+        # for i in aiter(first, amount + first):
+
 
     async def traverse_api(self, timeout=60):
         s, j, n, t, a, b = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.new_stories(),

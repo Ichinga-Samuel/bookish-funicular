@@ -46,13 +46,11 @@ class AsyncGather:
             print('Cancelled')
 
         finally:
-            print(f"Made {len(self.visited)} API calls. Saved {len(self.db)} items.")
+            print(f"Made {len(self.visited)} API calls. Saved {len(self.db)} items in {asyncio.get_running_loop() - start} seconds")
             print(self.db)
 
 
 async def main():
-    ag = AsyncGather()
-    await ag.traverse_api()
-
+    await AsyncGather().traverse_api()
 
 asyncio.run(main())

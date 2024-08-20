@@ -1,8 +1,6 @@
 """
 Mock DB for testing purposes
 """
-import shelve
-
 from models import Story, Comment, User
 
 
@@ -13,6 +11,7 @@ class DictDB:
         # self.db = shelve.open(name, writeback=True)
         # self.data = self.db.setdefault('data', {'story': {}, 'comment': {}, 'job': {}, 'user': {}})
         self.data = {'story': {}, 'comment': {}, 'job': {}, 'user': {}}
+        self.index = dict()
 
 
     def clear(self):
@@ -30,7 +29,11 @@ class DictDB:
                 f"Users: {len(self.data['user'])}\n")
 
     def get(self, key):
-        return self.data.get(key)
+       for model in self.data.values:
+           if (val := model.get(key)):
+               return val
+       else:
+           raise KeyError(f"{key} not found in database")
 
     async def save(self, *, data):
         try:
@@ -38,7 +41,6 @@ class DictDB:
             model = self.types[key]
             data = model(**data)
             self.data[key][data.id] = data
-            # self.db.sync()
         except (Exception) as exe:
             print(f"Error saving item: {exe}")
     
@@ -46,7 +48,6 @@ class DictDB:
         try:
             data = User(**data)
             self.data['user'][data.id] = data
-            # self.db.sync()
         except Exception as exe:
             print(f"Error saving user: {exe}")
 
