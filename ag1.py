@@ -46,7 +46,8 @@ class AsyncGather:
             print('Cancelled')
 
         finally:
-            print(f"Made {len(self.visited)} API calls. Saved {len(self.db)} items in {asyncio.get_running_loop() - start} seconds")
+            print(f"Made {len(self.visited)} API calls. Saved {len(self.db)} items"
+                  f" in {asyncio.get_running_loop().time() - start} seconds")
             print(self.db)
 
 

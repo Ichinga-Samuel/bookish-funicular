@@ -6,11 +6,10 @@ from async_queue import AsyncQueue
 
 async def main(mode='queue'):
     if mode == 'gather':
-        # async gather
         ag = AsyncGather()
-        await ag.traverse_api(timeout=60)
+        # await ag.walk_back()
+        await ag.traverse_api()
     elif mode == 'queue':
-        # async queue
         aq = AsyncQueue()
         await aq.traverse_api()
     else:
