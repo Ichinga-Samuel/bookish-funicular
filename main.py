@@ -10,11 +10,11 @@ async def main(mode='queue'):
         # await ag.walk_back()
         await ag.traverse_api()
     elif mode == 'queue':
-        aq = AsyncQueue()
-        await aq.traverse_api()
+        aq = AsyncQueue(workers=10, on_exit='complete_priority')
+        await aq.traverse_api(timeout=20)
     else:
         print('Invalid mode')
 
 
 if __name__ == '__main__':
-    asyncio.run(main(mode='gather'))
+    asyncio.run(main(mode='queue'))

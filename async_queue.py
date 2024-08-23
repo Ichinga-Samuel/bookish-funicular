@@ -7,40 +7,62 @@ from api import API
 
 class AsyncQueue:
 
-    def __init__(self, db=None, timeout=20, size=0):
-        self.connections = []
+    def __init__(self, db=None, **tq_kwargs):
         self.visited = set()
         self.db = db or DictDB()
-        self.task_queue = TaskQueue(size=size, timeout=timeout, on_timeout='must_finish')
+        self.task_queue = TaskQueue(**tq_kwargs)
         self.api = API()
 
     async def get_user(self, *, user_id):
         res = await self.api.get_user(user_id=user_id)
         self.visited.add(res['id'])
-        self.task_queue.add(item=QueueItem(self.db.save_user, _must_finish=True, data=res), priority=0)
-        if submissions := res.get('submitted', []):
-            [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=item)) for item in submissions]
+        self.task_queue.add(item=QueueItem(self.db.save_user, must_complete=True, data=res), priority=0)
 
-    async def get_by_id(self, *, item_id):
+        if submissions := res.get('submitted'):
+            [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in submissions]
+
+    async def get_item(self, *, item_id):
         try:
             if item_id in self.visited:
                 return
-            res = await self.api.get_by_id(item_id=item_id)
-            self.visited.add(res['id'])
-            self.task_queue.add(item=QueueItem(self.db.save, _must_finish=True, data=res), priority=0)
-            if 'kids' in res:
-                [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=item)) for item in res['kids']]
 
-            if 'by' in res and res['by'] not in self.visited:
-                self.task_queue.add(item=QueueItem(self.get_user, user_id=res['by']), priority=1)
-            return res
+            res = await self.api.get_item(item_id=item_id)
+            self.visited.add(res['id'])
+            self.task_queue.add(item=QueueItem(self.db.save, must_complete=True, data=res), priority=0)
+
+            if (by := res.get('by')) and by not in self.visited:
+                self.task_queue.add(item=QueueItem(self.get_user, user_id=by), priority=1)
+
+            if parent := res.get('parent'):
+                self.task_queue.add(item=QueueItem(self.get_item, item_id=parent), priority=2)
+
+            if kids := res.get('kids'):
+                [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in kids]
+
         except Exception as err:
             print(err)
 
-    async def traverse_api(self):
-        s, j, t, a = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.top_stories(),
-                                          self.api.ask_stories())
-        stories = set(s) | set(j) | set(t) | set(a)
-        [self.task_queue.add(item=QueueItem(self.get_by_id, item_id=itd)) for itd in stories]
-        await self.task_queue.run()
-        print(f'{len(self.db)}|{len(self.visited)} items visited')
+    async def traverse_api(self, timeout: int = None):
+        s, j, t, a, b, n = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.top_stories(),
+                                          self.api.ask_stories(), self.api.best_stories(), self.api.new_stories())
+        stories = set(s) | set(j) | set(t) | set(a) | set(b) | set(n)
+        print(f"Total stories: {len(stories)}")
+        [self.task_queue.add(item=QueueItem(self.get_item, item_id=itd)) for itd in stories]
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        await self.task_queue.run(timeout=timeout)
+        print(f"Made {len(self.visited)} API calls in {loop.time() - start:.2f} seconds")
+        print(self.db)
+
+    async def walk_back(self, *, amount: int = 1000, timeout: int = None):
+        largest = await self.api.max_item()
+        print(f"Walking back from item {largest} to {largest - amount}")
+
+        for item in range(largest, largest - amount, -1):
+            self.task_queue.add(item=QueueItem(self.get_item, item_id=item))
+
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        await self.task_queue.run(timeout=timeout)
+        print(f"Made {len(self.visited)} API calls in {loop.time() - start:.2f} seconds")
+        print(self.db)

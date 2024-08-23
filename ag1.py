@@ -9,26 +9,39 @@ class AsyncGather:
         self.api = API()
         self.db = db or DictDB()
         self.visited = set()
+        self.tasks: list[asyncio.Task] = []
 
     async def traverse_item(self, *, item):
         if item in self.visited:
             return
 
+        print(f"Getting item {item}")
         res = await self.api.get_item(item_id=item)
         await self.db.save(data=res)
         self.visited.add(item)
-        print(f"{res.get('title', res.get('id'))}")
 
         tasks = []
-        if kids := res.get('kids'):
-            tasks.extend(asyncio.create_task(self.traverse_item(item=item)) for item in kids)
+        user_stories = []
 
+        # saving user data
         if (by := res.get('by')) and by not in self.visited:
             res = await self.api.get_user(user_id=by)
             self.visited.add(res['id'])
             await self.db.save_user(data=res)
             if submissions := res.get('submitted'):
-                tasks.extend(asyncio.create_task(self.traverse_item(item=item)) for item in submissions)
+                user_stories.extend(asyncio.create_task(self.traverse_item(item=item)) for item in submissions)
+
+        # saving kids data
+        if kids := res.get('kids'):
+            tasks.extend(asyncio.create_task(self.traverse_item(item=item)) for item in kids)
+
+        # saving parent data
+        if (parent := res.get('parent')) and parent not in self.visited:
+            tasks.append(asyncio.create_task(self.traverse_item(item=parent)))
+
+        # include user stories in the tasks
+        tasks.extend(user_stories)
+
         await asyncio.gather(*tasks)
 
     async def traverse_api(self):
@@ -37,7 +50,6 @@ class AsyncGather:
         stories = set(s) | set(j) | set(t) | set(a) | set(b) | set(n)
         print(f"Total stories: {len(stories)}")
         start = asyncio.get_running_loop().time()
-
         try:
             tasks = [asyncio.create_task(self.traverse_item(item=story)) for story in stories]
             await asyncio.gather(*tasks)

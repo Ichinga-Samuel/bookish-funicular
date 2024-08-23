@@ -37,6 +37,10 @@ class AsyncGather:
         if kids := res.get('kids'):
             tasks.extend(asyncio.create_task(self.traverse_item(item=item)) for item in kids)
 
+        # saving parent data
+        if (parent := res.get('parent')) and parent not in self.visited:
+            tasks.append(asyncio.create_task(self.traverse_item(item=parent)))
+
         # include user stories in the tasks
         tasks.extend(user_stories)
 
