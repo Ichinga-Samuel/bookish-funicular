@@ -7,16 +7,16 @@ from api import API
 
 class AsyncQueue:
 
-    def __init__(self, db=None, **tq_kwargs):
+    def __init__(self, **tq_kwargs):
         self.visited = set()
-        self.db = db or DictDB()
+        self.db = DictDB()
         self.task_queue = TaskQueue(**tq_kwargs)
         self.api = API()
 
     async def get_user(self, *, user_id):
         res = await self.api.get_user(user_id=user_id)
         self.visited.add(res['id'])
-        self.task_queue.add(item=QueueItem(self.db.save_user, must_complete=True, data=res), priority=0)
+        self.task_queue.add(item=QueueItem(self.db.save_user, must_complete=True, data=res))
 
         if submissions := res.get('submitted'):
             [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in submissions]
@@ -28,41 +28,38 @@ class AsyncQueue:
 
             res = await self.api.get_item(item_id=item_id)
             self.visited.add(res['id'])
-            self.task_queue.add(item=QueueItem(self.db.save, must_complete=True, data=res), priority=0)
+            self.task_queue.add(item=QueueItem(self.db.save, must_complete=True, data=res))
 
             if (by := res.get('by')) and by not in self.visited:
-                self.task_queue.add(item=QueueItem(self.get_user, user_id=by), priority=1)
+                self.task_queue.add(item=QueueItem(self.get_user, user_id=by), priority=0)
 
-            if parent := res.get('parent'):
-                self.task_queue.add(item=QueueItem(self.get_item, item_id=parent), priority=2)
+            if (parent := res.get('parent')) and parent not in self.visited:
+                self.task_queue.add(item=QueueItem(self.get_item, item_id=parent), priority=1)
 
             if kids := res.get('kids'):
-                [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in kids]
+                [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in kids if item not in self.visited]
 
         except Exception as err:
             print(err)
 
-    async def traverse_api(self, timeout: int = None):
+    async def traverse_api(self, timeout: int = 0):
         s, j, t, a, b, n = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.top_stories(),
                                           self.api.ask_stories(), self.api.best_stories(), self.api.new_stories())
         stories = set(s) | set(j) | set(t) | set(a) | set(b) | set(n)
-        print(f"Total stories: {len(stories)}")
-        [self.task_queue.add(item=QueueItem(self.get_item, item_id=itd)) for itd in stories]
-        loop = asyncio.get_running_loop()
-        start = loop.time()
+        print(f"Traversing {len(stories)} stories")
+
+        [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in stories]
         await self.task_queue.run(timeout=timeout)
-        print(f"Made {len(self.visited)} API calls in {loop.time() - start:.2f} seconds")
+        print(f"Made {len(self.visited)} API calls.")
         print(self.db)
 
-    async def walk_back(self, *, amount: int = 1000, timeout: int = None):
+    async def walk_back(self, *, amount: int = 1000, timeout: int = 0):
         largest = await self.api.max_item()
         print(f"Walking back from item {largest} to {largest - amount}")
 
         for item in range(largest, largest - amount, -1):
-            self.task_queue.add(item=QueueItem(self.get_item, item_id=item))
+            self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) if item not in self.visited else ...
 
-        loop = asyncio.get_running_loop()
-        start = loop.time()
         await self.task_queue.run(timeout=timeout)
-        print(f"Made {len(self.visited)} API calls in {loop.time() - start:.2f} seconds")
+        print(f"Made {len(self.visited)} API calls.")
         print(self.db)

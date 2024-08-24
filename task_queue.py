@@ -26,8 +26,8 @@ class QueueItem:
 
 
 class TaskQueue:
-    def __init__(self, size: int = 0, workers: int = 1000, timeout: int = 60,
-                 queue: asyncio.Queue = None, on_exit: Literal['cancel', 'complete_priority'] = 'cancel'):
+    def __init__(self, size: int = 0, workers: int = 50, timeout: int = 60,
+                 queue: asyncio.Queue = None, on_exit: Literal['cancel', 'complete_priority'] = 'complete_priority'):
         self.queue = queue or asyncio.PriorityQueue(maxsize=size)
         self.workers = workers
         self.tasks = []
@@ -69,20 +69,15 @@ class TaskQueue:
 
     def sigint_handle(self, sig, frame):
         print('SIGINT received, cleaning up...')
-        self.cleanup()
 
+        if self.on_exit == 'complete_priority':
+            print(f'Completing {len(self.priority_tasks)} priority tasks...')
+            self.stop = True
 
-    async def cleanup(self):
-        match self.on_exit:
-            case 'complete_priority':
-                print('Completing priority tasks...')
-                self.stop = True
+        else:
+            self.cancel()
 
-            case 'cancel':
-                self.cancel()
-            
-            case _:
-                ...
+        self.on_exit = 'cancel'  # force cancel on exit if SIGINT is received again
                 
     async def run(self, timeout: int = 0):
         loop = asyncio.get_running_loop()
@@ -90,22 +85,31 @@ class TaskQueue:
 
         try:
             self.tasks.extend(asyncio.create_task(self.worker()) for _ in range(self.workers))
-            self.tasks.append(task := asyncio.create_task(self.queue.join()))
+            task = asyncio.create_task(self.queue.join())
+            self.tasks.append(task)
             await asyncio.wait_for(task, timeout = timeout or self.timeout)
 
         except TimeoutError:
-            print(f"Tasks timed out after {(loop.time() - start)} seconds."
-                  f"{self.queue.qsize()} tasks remaining in queue, {len(self.priority_tasks)} are priority tasks")
-            await self.cleanup()
+            print(f"Timed out after {loop.time() - start} seconds. {self.queue.qsize()} tasks remaining")
+
+            if self.on_exit == 'complete_priority' and self.priority_tasks:
+                print(f'Completing {len(self.priority_tasks)} priority tasks...')
+                self.stop = True
+                await self.queue.join()
+
+            else:
+                self.cancel()
+
+        except asyncio.CancelledError:
+            print('Tasks cancelled')
 
         finally:
             print(f'Exiting queue after {(loop.time() - start)} seconds.'
                   f'{self.queue.qsize()} tasks remaining, {len(self.priority_tasks)} are priority tasks')
-            self.cancel()
 
+        self.cancel()
 
     def cancel(self):
-        print(f"Cancelling {len(self.tasks)} tasks")
         cancelled = [task.cancel() for task in self.tasks if not task.done()]
-        print(f'Cancelled {len(cancelled)} worker tasks')
+        print(f'Cancelled {len(cancelled)} worker tasks') if cancelled else ...
         self.tasks.clear()
