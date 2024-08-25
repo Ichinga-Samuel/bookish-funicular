@@ -8,8 +8,7 @@ class DictDB:
     types = {'story': Story, 'comment': Comment, 'job': Story}
     
     def __init__(self):
-        self.data = {'story': {}, 'comment': {}, 'job': {}, 'user': {}}
-        self.index = dict()
+        self.data = {'story': {}, 'comment': {}, 'job': {}, 'user': {}}  # store data in memory
 
     def __len__(self):
         return sum(len(v) for v in self.data.values())

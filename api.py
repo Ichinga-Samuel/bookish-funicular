@@ -4,10 +4,10 @@ import json
 
 
 class API:
-    URL = 'hacker-news.firebaseio.com'
+    url = 'hacker-news.firebaseio.com'
 
     async def get(self, *, path: str) -> list | int | dict:
-        url = f'{self.URL}'
+        url = f'{self.url}'
         path = f'/v0/{path}'
         conn = http.client.HTTPSConnection(url)
         await asyncio.to_thread(conn.request, 'GET', path)

@@ -1,3 +1,4 @@
+from typing import Literal
 import asyncio
 import signal
 
@@ -69,7 +70,7 @@ class AsyncGather:
                   f" {loop.time() - start:.2f} seconds")
             print(self.db)
 
-    async def traverse_api(self, timeout=60):
+    async def traverse_api(self, timeout=10):
         s, j, n, t, a, b = await asyncio.gather(self.api.show_stories(), self.api.job_stories(), self.api.new_stories(),
                                                 self.api.top_stories(), self.api.ask_stories(), self.api.best_stories())
         stories = set(s) | set(j) | set(t) | set(a) | set(b) | set(n)
@@ -79,11 +80,12 @@ class AsyncGather:
 
         try:
             self.tasks = [asyncio.create_task(self.traverse_item(item=story)) for story in stories]
-            task = asyncio.gather(*self.tasks)
-            await asyncio.wait_for(task, timeout)
+            await asyncio.wait_for(asyncio.gather(*self.tasks), timeout)
 
         except TimeoutError as _:
             print('Timed out')
+
+
 
         except asyncio.CancelledError as _:
             print('Tasks Cancelled')
@@ -97,3 +99,21 @@ class AsyncGather:
         print('SIGINT received, cleaning up...')
         cancelled = [task.cancel() for task in self.tasks if not task.done()]
         print(f'Cancelled {len(cancelled)} tasks') if cancelled else ...
+
+
+if __name__ == '__main__':
+    async def main(mode: Literal['traverse', 'walk_back'] = 'traverse'):
+        ag = AsyncGather()
+
+        match mode:
+            case 'traverse':
+                await ag.traverse_api()
+
+            case 'walk_back':
+                await ag.walk_back()
+
+            case _:
+                print('Invalid mode specified, but running traverse')
+                await ag.traverse_api()
+
+    asyncio.run(main())

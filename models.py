@@ -9,7 +9,7 @@ class Types(StrEnum):
     
     
 @dataclass
-class BaseClass:
+class Item:
     id: int
     type: Types
     deleted: bool = False
@@ -23,7 +23,7 @@ class BaseClass:
 
 
 @dataclass
-class Story(BaseClass):
+class Story(Item):
     descendants: int = 0
     title: str = ''
     url: str = 'https://news.ycombinator.com/'
@@ -32,7 +32,7 @@ class Story(BaseClass):
 
 
 @dataclass
-class Job(BaseClass):
+class Job(Item):
     title: str = ''
     text: str = ''
     score: int = 0
@@ -40,7 +40,7 @@ class Job(BaseClass):
         
 
 @dataclass
-class Comment(BaseClass):
+class Comment(Item):
     parent: int = 0
     text: str = ''
 

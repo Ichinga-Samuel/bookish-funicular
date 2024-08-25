@@ -1,4 +1,5 @@
 import asyncio
+from typing import Literal
 
 from dict_db import DictDB
 from task_queue import TaskQueue, QueueItem
@@ -47,7 +48,6 @@ class AsyncQueue:
                                           self.api.ask_stories(), self.api.best_stories(), self.api.new_stories())
         stories = set(s) | set(j) | set(t) | set(a) | set(b) | set(n)
         print(f"Traversing {len(stories)} stories")
-
         [self.task_queue.add(item=QueueItem(self.get_item, item_id=item)) for item in stories]
         await self.task_queue.run(timeout=timeout)
         print(f"Made {len(self.visited)} API calls.")
@@ -63,3 +63,21 @@ class AsyncQueue:
         await self.task_queue.run(timeout=timeout)
         print(f"Made {len(self.visited)} API calls.")
         print(self.db)
+
+
+if __name__ == '__main__':
+    async def main(mode: Literal['traverse', 'walk_back'] = 'traverse'):
+        async_queue = AsyncQueue()
+
+        match mode:
+            case 'traverse':
+                await async_queue.traverse_api()
+
+            case 'walk_back':
+                await async_queue.walk_back()
+
+            case _:
+                print('Invalid mode but running traverse')
+                await async_queue.traverse_api()
+
+    asyncio.run(main())

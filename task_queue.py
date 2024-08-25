@@ -21,6 +21,7 @@ class QueueItem:
     async def run(self):
         try:
             await self.coroutine(*self.args, **self.kwargs)
+
         except Exception as err:
             print(f"An error occurred while running coroutine: {err}")
 
@@ -44,6 +45,7 @@ class TaskQueue:
                     self.priority_tasks.add(item) if item.must_complete else ...
                     item = (priority, item)
                 self.queue.put_nowait(item)
+
         except asyncio.QueueFull:
             ...
 
